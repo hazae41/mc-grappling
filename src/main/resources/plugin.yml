@@ -1,0 +1,16 @@
+name: Grappling
+version: @version@
+main: hazae41.minecraft.grappling.Plugin
+author: hazae41
+
+commands:
+  grappling:
+    aliases: [gh]
+    description: hazae41's Grappling
+    usage: "/<command>"
+
+permissions:
+  grappling.*:
+    children:
+      grappling.use: true
+      grappling.give: true

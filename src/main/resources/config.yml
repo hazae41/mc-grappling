@@ -1,0 +1,7 @@
+use-permission: "grappling.use"
+give-permission: "grappling.give"
+name: "Grappling Hook"
+lore:
+  - "A grappling hook"
+force: 0.5
+durability: 1000
