@@ -54,7 +54,6 @@ fun Plugin.makeGrappling(force: Int, durability: Int) = ItemStack(FISHING_ROD, 1
     addUnsafeEnchantment(RIPTIDE, force)
     if (durability > 0) addUnsafeEnchantment(DURABILITY, durability)
     itemMeta = itemMeta?.apply {
-        db.set(usesKey, DOUBLE, 0.0)
         setDisplayName(Config.name)
         lore = Config.lore
     }
@@ -90,11 +89,14 @@ fun Plugin.registerEvents() {
             val force = item.getEnchantmentLevel(RIPTIDE)
             it.player.pull(it.hook.location, force)
 
+            val durability = item.getEnchantmentLevel(DURABILITY)
+            val max = item.type.maxDurability
 
             item.itemMeta = item.itemMeta!!.apply {
-                val durability = item.getEnchantmentLevel(DURABILITY)
-                val uses = db.get(usesKey, DOUBLE)!!.plus(1.0 / (durability + 1))
-                val max = item.type.maxDurability
+                val uses = run {
+                    if (!db.has(usesKey, DOUBLE)) 0.0
+                    else db.get(usesKey, DOUBLE)!!
+                }.plus(1.0 / (durability + 1))
                 (this as Damageable).damage = (uses * max / Config.durability).roundToInt()
                 if (uses >= Config.durability) item.amount = 0
                 db.set(usesKey, DOUBLE, uses)
