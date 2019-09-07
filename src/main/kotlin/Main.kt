@@ -16,6 +16,8 @@ import org.bukkit.NamespacedKey
 import org.bukkit.enchantments.Enchantment.DURABILITY
 import org.bukkit.enchantments.Enchantment.RIPTIDE
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL
 import org.bukkit.event.player.PlayerFishEvent
 import org.bukkit.event.player.PlayerFishEvent.State.FAILED_ATTEMPT
 import org.bukkit.event.player.PlayerFishEvent.State.IN_GROUND
@@ -34,6 +36,7 @@ object Config : PluginConfigFile("config") {
     val lore by stringList("lore")
     val force by double("force")
     val durability by int("durability")
+    val fallReduction by double("fall-damage-reduction", 3.0)
 }
 
 class Plugin : BukkitPlugin() {
@@ -60,30 +63,39 @@ fun Plugin.makeGrappling(force: Int, durability: Int) = ItemStack(FISHING_ROD, 1
 }
 
 fun Player.pull(to: Location, force: Int) {
-    val location = location
     val vector = to.toVector().subtract(location.toVector()).normalize()
-    velocity = vector.multiply(Config.force).multiply(force)
+    this.velocity = vector.multiply(Config.force).multiply(force)
     fallDistance = 0f
 }
 
-fun Plugin.debug(ex: java.lang.Exception) {
+fun Plugin.debug(ex: Exception) {
     if (Config.debug) info(ex)
 }
 
+fun <T> require(it: T?): T = it ?: throw ex("Invalid")
+fun require(it: Boolean) {
+    if (!it) throw ex("Invalid")
+}
+
 fun Plugin.registerEvents() {
+    listen<EntityDamageEvent> {
+        catch(::debug) {
+            require(it.cause === FALL)
+            val player = require(it.entity as? Player)
+            val item = player.inventory.itemInMainHand
+            require(isGrappling(item))
+            it.damage = player.fallDistance / Config.fallReduction
+        }
+    }
     listen<PlayerFishEvent> {
         catch(::debug) {
-            val nostate = ex("Wrong state")
-            if (it.state !in listOf(IN_GROUND, FAILED_ATTEMPT)) throw nostate
+            require(it.state in listOf(IN_GROUND, FAILED_ATTEMPT))
 
             val item = it.player.inventory.itemInMainHand
-            val noitem = ex("Wrong item")
-            if (!isGrappling(item)) throw noitem
+            require(isGrappling(item))
 
-            if (Config.usePermission.isNotBlank()) {
-                val noperm = ex("No permission")
-                if (!it.player.hasPermission(Config.usePermission)) throw noperm
-            }
+            val perm = Config.usePermission
+            require(perm.isBlank() || it.player.hasPermission(perm))
 
             it.isCancelled = true
 
@@ -104,7 +116,6 @@ fun Plugin.registerEvents() {
             }
             it.player.updateInventory()
         }
-
     }
 }
 

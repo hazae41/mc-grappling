@@ -5,3 +5,4 @@ lore:
   - "A grappling hook"
 force: 0.5
 durability: 1000
+fall-damage-reduction: 3.0
