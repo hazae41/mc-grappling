@@ -63,6 +63,7 @@ fun Player.pull(to: Location, force: Int) {
     val location = location
     val vector = to.toVector().subtract(location.toVector()).normalize()
     velocity = vector.multiply(Config.force).multiply(force)
+    fallDistance = 0f
 }
 
 fun Plugin.debug(ex: java.lang.Exception) {
