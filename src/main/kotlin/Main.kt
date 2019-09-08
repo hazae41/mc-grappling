@@ -25,6 +25,7 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataType.DOUBLE
+import org.bukkit.util.Vector
 import java.lang.Integer.parseInt
 import kotlin.math.roundToInt
 
@@ -62,9 +63,18 @@ fun Plugin.makeGrappling(force: Int, durability: Int) = ItemStack(FISHING_ROD, 1
     }
 }
 
-fun Player.pull(to: Location, force: Int) {
-    val vector = to.toVector().subtract(location.toVector()).normalize()
-    this.velocity = vector.multiply(Config.force).multiply(force)
+fun Int.toRadians() = this * Math.PI / 180
+infix fun Vector.similarTo(other: Vector) = angle(other) < 90.toRadians()
+
+fun Player.pull(to: Location, force: Double) {
+    val direction = to.toVector().subtract(location.toVector()).normalize()
+    val vector = direction.multiply(force)
+    val currentForce = velocity.length()
+    velocity = velocity.add(vector).run {
+        if (direction similarTo velocity && currentForce > force) {
+            normalize().multiply(currentForce)
+        } else this
+    }
     fallDistance = 0f
 }
 
@@ -89,6 +99,7 @@ fun Plugin.registerEvents() {
     }
     listen<PlayerFishEvent> {
         catch(::debug) {
+            require(!it.player.isSneaking)
             require(it.state in listOf(IN_GROUND, FAILED_ATTEMPT))
 
             val item = it.player.inventory.itemInMainHand
@@ -100,7 +111,7 @@ fun Plugin.registerEvents() {
             it.isCancelled = true
 
             val force = item.getEnchantmentLevel(RIPTIDE)
-            it.player.pull(it.hook.location, force)
+            it.player.pull(it.hook.location, Config.force * force)
 
             val durability = item.getEnchantmentLevel(DURABILITY)
             val max = item.type.maxDurability
